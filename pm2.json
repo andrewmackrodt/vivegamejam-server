@@ -1,0 +1,13 @@
+{
+  "apps": [
+    {
+      "name": "server",
+      "script": "index.js",
+      "instances": 0,
+      "exec_mode": "cluster",
+      "watch": false,
+      "error_file": "/dev/null",
+      "out_file": "/dev/null"
+    }
+  ]
+}

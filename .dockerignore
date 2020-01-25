@@ -1,0 +1,10 @@
+build/
+node_modules/
+.git/
+.idea/
+Dockerfile*
+README.md
+docker-compose*.yml
+nodemon*.json
+.dockerignore
+.gitignore
