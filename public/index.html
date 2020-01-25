@@ -1,21 +1,66 @@
-<!doctype html>
+<html lang="en" class="h-100  w-100">
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="author" content="Team #5 - Let's Do Something Stupid">
     <title>Giant Siege Multiplayer Client</title>
-
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.bundle.min.js" integrity="sha384-6khuMg9gaYr5AxOqhkVIODVIvm9ynTT5J4V1cfthmT+emCG6yVmEZsRHdxlotUnm" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css" integrity="sha256-BJ/G+e+y7bQdrYkS2RBTyNfBHpA9IuGaPmf9htub5MQ=" crossorigin="anonymous" />
 <body>
 <h2>Giant Siege Multiplayer Client</h2>
 <div id="output"></div>
+
+<body class="h-100 w-100">
+
+<div class="p-2 m-2 h-100">
+    <div class="row h-25 p-4">
+        <button class="btn btn-danger btn-lg btn-block m-2 h-100" onclick="sendSelectedBuffType('increase-damage')">
+            test
+            <br>
+            Increase damage
+        </button>
+    </div>
+
+    <div class="row h-25 p-4">
+        <button class="btn btn-warning btn-lg btn-block m-2 h-100"  onclick="sendSelectedBuffType('add-trebuchet')">
+            Add trebuchet
+        </button>
+    </div>
+
+    <div class="row h-25 p-4">
+        <button class="btn btn-info btn-lg btn-block m-2 h-100" onclick="sendSelectedBuffType('blurred-vision')">
+            <span class="oi oi-eye"></span>
+            <br>
+            Blurred Vision
+        </button>
+    </div>
+
+    <div class="row h-25 p-4">
+        <button class="btn btn-success btn-lg btn-block m-2 h-100" onclick="sendSelectedBuffType('increase-reinforcements')">
+            <span class="oi oi-bug"></span>
+            <br>
+            Increase Reinforcements
+        </button>
+    </div>
+
+</div>
 <script defer>
   let output;
+  let socket;
 
   function init() {
     output = document.getElementById('output');
 
     createSocket()
+  }
+
+  function sendSelectedBuffType(buffType) {
+    socket.send(JSON.stringify({
+      buffType: buffType
+    }));
   }
 
   function print(message) {
@@ -28,7 +73,7 @@
 
   function createSocket() {
     const uri = window.location.href.replace(/^http(s)?:/, 'ws$1:').replace(/\/$/, '');
-    const socket = new WebSocket(uri);
+    socket = new WebSocket(uri);
 
     socket.onopen = (e) => {
       console.log('open', e)
@@ -46,3 +91,5 @@
   window.addEventListener('load', init, false);
 </script>
 </body>
+
+
