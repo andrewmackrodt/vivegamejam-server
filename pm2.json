@@ -3,8 +3,8 @@
     {
       "name": "server",
       "script": "index.js",
-      "instances": 0,
-      "exec_mode": "cluster",
+      "instances": 1,
+      "exec_mode": "fork_mode",
       "watch": false,
       "error_file": "/dev/null",
       "out_file": "/dev/null"
