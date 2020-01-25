@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Team #5 - Let's Do Something Stupid">
+    <title>Giant Siege Multiplayer Client</title>
+
+<body>
+<h2>Giant Siege Multiplayer Client</h2>
+<div id="output"></div>
+<script defer>
+  let output;
+
+  function init() {
+    output = document.getElementById('output');
+
+    createSocket()
+  }
+
+  function print(message) {
+    const el = document.createElement('p');
+    el.style.wordWrap = 'break-word';
+    el.innerHTML = message;
+
+    output.appendChild(el)
+  }
+
+  function createSocket() {
+    const uri = window.location.href.replace(/^http(s)?:/, 'ws$1:').replace(/\/$/, '');
+    const socket = new WebSocket(uri);
+
+    socket.onopen = (e) => {
+      console.log('open', e)
+    };
+
+    socket.onmessage = (e) => {
+      console.log('message', e)
+    };
+
+    socket.onerror = (e) => {
+      console.log('error', e)
+    }
+  }
+
+  window.addEventListener('load', init, false);
+</script>
+</body>

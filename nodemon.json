@@ -1,0 +1,11 @@
+{
+  "watch": [
+    "./src"
+  ],
+  "ext": "ts",
+  "env": {
+    "NODE_ENV": "development",
+    "TS_NODE_FILES": "true"
+  },
+  "exec": "ts-node index"
+}
