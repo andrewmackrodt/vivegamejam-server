@@ -48,10 +48,9 @@ export class GameServer {
             case 'Identify':
                 this.clients.add(ws)
                 this.dispatchGameEventsToClients({
-                    clientType: "Client",
+                    clientType: 'Client',
                     type: 'VoteCount',
                     value: this.clientVotes,
-                    subType: 'VoteCount',
                 })
                 break
             case 'OpponentAdvantage':
@@ -62,10 +61,9 @@ export class GameServer {
                 }
                 this.clientVotes[key] += 1
                 this.dispatchGameEventsToClients({
-                    clientType: "Client",
+                    clientType: 'Client',
                     type: 'VoteCount',
                     value: this.clientVotes,
-                    subType: 'VoteCount',
                 })
                 break
         }
@@ -211,48 +209,54 @@ export class GameServer {
 
     private dispatchDecisionTimerEvents = () => {
         const events: GameEvent[] = []
-
         this.timeToNextDecision--
+        const votes = this.clientVotes
 
         if (this.timeToNextDecision < 0) {
             this.timeToNextDecision = GameServer.CLIENT_DECISION_TIME_SECONDS
 
             events.push({
-                clientType: 'Server',
+                clientType: 'Client',
                 type: 'DecisionTimeReset',
                 value: this.timeToNextDecision,
             })
+
+            this.clientVotes = {}
+
+            if (Object.keys(votes).length > 0) {
+                const votesInDesc = Object.entries(votes).sort((a, b) => b[1] - a[1])
+                const [name] = votesInDesc[0]
+
+                events.push({
+                    clientType: 'Client',
+                    type: 'DecisionTimeWinner',
+                    value: name,
+                })
+
+
+                //region send winner to host
+                const [type, subType] = name.split('_')
+
+                const event: GameEvent = {
+                    clientType: 'Server',
+                    type,
+                    subType,
+                    value: true,
+                }
+
+                if (typeof subType === 'undefined') {
+                    delete event.subType
+                }
+
+                this.dispatchGameEventsToHost([event])
+                //endregion
+            }
         } else {
             events.push({
-                clientType: 'Server',
+                clientType: 'Client',
                 type: 'DecisionTimeTick',
                 value: this.timeToNextDecision,
             })
-        }
-
-        if (Object.keys(this.clientVotes).length > 0) {
-            const votesInDesc = Object.entries(this.clientVotes).sort((a, b) => b[1] - a[1])
-            const [name, votes] = votesInDesc[0]
-            const [type, subType] = name.split('_')
-
-            const event: GameEvent = {
-                clientType: 'Server',
-                type,
-                subType,
-                value: votes,
-            }
-
-            if (typeof subType === 'undefined') {
-                delete event.subType
-            }
-
-            events.push(event)
-
-            this.clientVotes = {}
-        }
-
-        if (events.length > 1) {
-            this.dispatchGameEventsToHost(events.slice(1))
         }
 
         this.dispatchGameEventsToClients(events)
