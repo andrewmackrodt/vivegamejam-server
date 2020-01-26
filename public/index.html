@@ -112,12 +112,12 @@
 
     socket.onmessage = (e) => {
       console.log('message', e)
-      var events = JSON.parse(e);
-      events.each((event) => {
+      const events = JSON.parse(e.data)
+      for (const event of events) {
         if(event.type == 'MonsterEnergyChange'){
           updateGiantsEnergy(event.value)
         }
-      })
+      }
     };
 
     function updateGiantsEnergy(energyLevel)
