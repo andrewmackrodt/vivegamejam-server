@@ -50,9 +50,9 @@
     <a class="navbar-brand" href="#">Giant Siege</a>
 </nav>
 <div class="h-100">
-    <div class="container">
-        <p class="text-center">Stop the Giant from destroying the town! You have
-            <strong><span id="timer"></span></strong> seconds to help the villagers save their homes!</p>
+    <div class="game-row text-center bg-white" >
+        Stop the Giant from destroying the town! You have
+        <strong><span id="timer"></span></strong> seconds to help the villagers save their homes!
     </div>
     <div class="row game-rows px-4 py-2">
         <button class="btn btn-danger btn-lg btn-block m-2 button-height"
@@ -103,6 +103,15 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade bd-example-modal-sm" tabindex="-1" role="dialog" aria-labelledby="myModal" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            That
+        </div>
+    </div>
+</div>
+
 <script defer>
   let output;
   let socket;
@@ -176,7 +185,8 @@
       }
     }
 
-    function updateVoteCounts(votes) {
+    function updateVoteCounts(votes)
+    {
       for (const [name, count] of Object.entries(votes)) {
         document.getElementById(`${name}-vote-count`).innerText = count;
       }
