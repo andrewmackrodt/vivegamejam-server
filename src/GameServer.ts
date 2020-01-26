@@ -17,12 +17,17 @@ export class GameServer {
 
     private host: WebSocket | undefined
     private readonly clients: Set<WebSocket> = new Set<WebSocket>()
+    private clientVotes: Record<string,number> = {}
+    private readonly buffTimerInSeconds = 60
+
 
     constructor() {
         this.app = this.createApp()
         this.port = this.detectPort()
         this.server = this.createServer()
         this.ws = this.createWebSocketServer()
+        // setInterval(this.sendVillagerBuff, this.buffTimerInSeconds * 1000);
+
     }
 
     private handleHostGameEvent(e: GameEvent, ws: WebSocket) {
@@ -37,9 +42,19 @@ export class GameServer {
     }
 
     private handleClientGameEvent(e: GameEvent, ws: WebSocket) {
+        console.log(e.type)
         switch (e.type) {
             case 'Identify':
                 this.clients.add(ws)
+                this.dispatchGameEventsToClients({clientType: "Client", type: 'VoteCount', value: this.clientVotes, subType: 'VoteCount'})
+                break
+            case 'buffType':
+                if(!(e.value in this.clientVotes)){
+                    this.clientVotes[e.value] = 0
+                }
+
+                this.clientVotes[e.value] += 1
+                this.dispatchGameEventsToClients({clientType: "Client", type: 'VoteCount', value: this.clientVotes, subType: 'VoteCount'})
                 break
         }
     }
@@ -48,6 +63,7 @@ export class GameServer {
         if ( ! Array.isArray(events)) {
             events = [events]
         }
+
         const serialized = JSON.stringify(events)
         for (const ws of this.clients.values()) {
             if (ws === ignoreWs) {
@@ -165,4 +181,9 @@ export class GameServer {
 
         return gameEvents
     }
+
+    // private sendVillagerBuff()
+    // {
+    //     this.dis({clientType: "Client", type: 'VoteCount', value: this.clientVotes, subType: 'VoteCount'})
+    // }
 }
