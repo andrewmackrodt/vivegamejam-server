@@ -7,7 +7,10 @@ import * as WebSocket from 'ws'
 import * as express from 'express'
 import * as expressWs from 'express-ws'
 
+import Timeout = NodeJS.Timeout
+
 export class GameServer {
+    public static readonly CLIENT_DECISION_TIME_SECONDS = 10
     public static readonly DEFAULT_PORT: number = 8080
 
     private readonly app: express.Application
@@ -17,16 +20,16 @@ export class GameServer {
 
     private host: WebSocket | undefined
     private readonly clients: Set<WebSocket> = new Set<WebSocket>()
-    private clientVotes: Record<string,number> = {}
-    private readonly buffTimerInSeconds = 5
+    private clientVotes: Record<string, number> = {}
 
+    private interval?: Timeout
+    private timeToNextDecision = GameServer.CLIENT_DECISION_TIME_SECONDS
 
     constructor() {
         this.app = this.createApp()
         this.port = this.detectPort()
         this.server = this.createServer()
         this.ws = this.createWebSocketServer()
-        setInterval(this.sendVillagerBuff, this.buffTimerInSeconds * 1000);
     }
 
     private handleHostGameEvent(e: GameEvent, ws: WebSocket) {
@@ -44,26 +47,36 @@ export class GameServer {
         switch (e.type) {
             case 'Identify':
                 this.clients.add(ws)
-                this.dispatchGameEventsToClients({clientType: "Client", type: 'VoteCount', value: this.clientVotes, subType: 'VoteCount'})
+                this.dispatchGameEventsToClients({
+                    clientType: "Client",
+                    type: 'VoteCount',
+                    value: this.clientVotes,
+                    subType: 'VoteCount',
+                })
                 break
             case 'OpponentAdvantage':
             case 'MonsterDisadvantage':
                 const key = e.subType ? `${e.type}_${e.subType}` : e.type
-                if(!(key in this.clientVotes)){
+                if (!(key in this.clientVotes)) {
                     this.clientVotes[key] = 0
                 }
                 this.clientVotes[key] += 1
-                this.dispatchGameEventsToClients({clientType: "Client", type: 'VoteCount', value: this.clientVotes, subType: 'VoteCount'})
+                this.dispatchGameEventsToClients({
+                    clientType: "Client",
+                    type: 'VoteCount',
+                    value: this.clientVotes,
+                    subType: 'VoteCount',
+                })
                 break
         }
     }
 
     private dispatchGameEventsToHost(events: GameEvent | GameEvent[]) {
-        if ( ! this.host) {
+        if (!this.host) {
             console.error("Cannot dispatch events when there's no host.")
             return
         }
-        if ( ! Array.isArray(events)) {
+        if (!Array.isArray(events)) {
             events = [events]
         }
         const serialized = JSON.stringify(events)
@@ -72,7 +85,7 @@ export class GameServer {
     }
 
     private dispatchGameEventsToClients(events: GameEvent | GameEvent[], ignoreWs?: WebSocket) {
-        if ( ! Array.isArray(events)) {
+        if (!Array.isArray(events)) {
             events = [events]
         }
 
@@ -89,6 +102,8 @@ export class GameServer {
         this.server.listen(this.port, '0.0.0.0', () => {
             console.log('Running server on port %s', this.port)
         })
+
+        this.interval = setInterval(this.dispatchDecisionTimerEvents, 1000)
     }
 
     private detectPort(): number {
@@ -164,8 +179,8 @@ export class GameServer {
     private parseMessageGameEvents(message: string): GameEvent[] {
         const gameEvents: GameEvent[] = []
         const json: Partial<GameEvent[]> = JSON.parse(message)
-        
-        if ( ! Array.isArray(json) || json.length === 0) {
+
+        if (!Array.isArray(json) || json.length === 0) {
             console.error(`Bad message: not an array or empty`)
 
             return gameEvents
@@ -194,28 +209,52 @@ export class GameServer {
         return gameEvents
     }
 
-    private sendVillagerBuff = () => {
-        if(Object.keys(this.clientVotes).length === 0){
-            return
+    private dispatchDecisionTimerEvents = () => {
+        const events: GameEvent[] = []
+
+        this.timeToNextDecision--
+
+        if (this.timeToNextDecision < 0) {
+            this.timeToNextDecision = GameServer.CLIENT_DECISION_TIME_SECONDS
+
+            events.push({
+                clientType: 'Server',
+                type: 'DecisionTimeReset',
+                value: this.timeToNextDecision,
+            })
+        } else {
+            events.push({
+                clientType: 'Server',
+                type: 'DecisionTimeTick',
+                value: this.timeToNextDecision,
+            })
         }
-        const votesInDesc = Object.entries(this.clientVotes).sort((a, b) => b[1] - a[1])
 
-        const [name, votes] = votesInDesc[0]
-        const [type, subType] = name.split('_')
+        if (Object.keys(this.clientVotes).length > 0) {
+            const votesInDesc = Object.entries(this.clientVotes).sort((a, b) => b[1] - a[1])
+            const [name, votes] = votesInDesc[0]
+            const [type, subType] = name.split('_')
 
-        const event: GameEvent = {
-            clientType: "Server",
-            type,
-            value: votes,
+            const event: GameEvent = {
+                clientType: 'Server',
+                type,
+                subType,
+                value: votes,
+            }
+
+            if (typeof subType === 'undefined') {
+                delete event.subType
+            }
+
+            events.push(event)
+
+            this.clientVotes = {}
         }
 
-        if (typeof subType !== 'undefined') {
-            event.subType = subType
+        if (events.length > 1) {
+            this.dispatchGameEventsToHost(events.slice(1))
         }
 
-        console.log('Sending buff to host');
-        this.dispatchGameEventsToHost([event])
-        this.dispatchGameEventsToClients([event])
-        this.clientVotes = {}
+        this.dispatchGameEventsToClients(events)
     }
 }
