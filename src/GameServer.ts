@@ -42,21 +42,34 @@ export class GameServer {
     }
 
     private handleClientGameEvent(e: GameEvent, ws: WebSocket) {
-        console.log(e.type)
         switch (e.type) {
             case 'Identify':
                 this.clients.add(ws)
                 this.dispatchGameEventsToClients({clientType: "Client", type: 'VoteCount', value: this.clientVotes, subType: 'VoteCount'})
                 break
-            case 'buffType':
-                if(!(e.value in this.clientVotes)){
-                    this.clientVotes[e.value] = 0
+            case 'OpponentAdvantage':
+            case 'MonsterDisadvantage':
+                const key = e.subType ? `${e.type}_${e.subType}` : e.type
+                if(!(key in this.clientVotes)){
+                    this.clientVotes[key] = 0
                 }
-
-                this.clientVotes[e.value] += 1
+                this.clientVotes[key] += 1
                 this.dispatchGameEventsToClients({clientType: "Client", type: 'VoteCount', value: this.clientVotes, subType: 'VoteCount'})
                 break
         }
+    }
+
+    private dispatchGameEventsToHost(events: GameEvent | GameEvent[]) {
+        if ( ! this.host) {
+            console.error("Cannot dispatch events when there's no host.")
+            return
+        }
+        if ( ! Array.isArray(events)) {
+            events = [events]
+        }
+        const serialized = JSON.stringify(events)
+        console.log(`Sending to host: ${serialized}`)
+        this.host.send(serialized)
     }
 
     private dispatchGameEventsToClients(events: GameEvent | GameEvent[], ignoreWs?: WebSocket) {
