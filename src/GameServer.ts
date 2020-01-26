@@ -76,9 +76,10 @@ export class GameServer {
 
                     if (client !== ws && client.readyState === 1) {
                         client.send(JSON.stringify({
-                            type: 'apply-buff',
+                            type: 'ApplyBuff',
                             subType: m.buffType,
                             value: 1,
+                            clientType: 'Client',
                         }));
 
                     }
