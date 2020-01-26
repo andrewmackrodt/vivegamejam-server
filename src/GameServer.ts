@@ -69,7 +69,20 @@ export class GameServer {
 
             ws.on('message', (m: any) => {
                 console.log('[server](message): %s', JSON.stringify(m))
-                this.ws.emit('message', m)
+
+                this.ws.clients.forEach(function each(client) {
+                    console.log(client.readyState);
+                    console.log("replying message to clients");
+
+                    if (client !== ws && client.readyState === 1) {
+                        client.send(JSON.stringify({
+                            type: 'apply-buff',
+                            subType: m.buffType,
+                            value: 1,
+                        }));
+
+                    }
+                });
             })
 
             ws.on('close', () => {
