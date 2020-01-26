@@ -1,6 +1,6 @@
 export interface GameEvent {
-    readonly clientType: 'Server' | 'Client'
-    readonly type: string
-    readonly subType: string | undefined
-    readonly value: any
+    clientType: 'Server' | 'Client'
+    type: string
+    subType?: string
+    value: any
 }

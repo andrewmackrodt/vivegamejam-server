@@ -18,7 +18,7 @@ export class GameServer {
     private host: WebSocket | undefined
     private readonly clients: Set<WebSocket> = new Set<WebSocket>()
     private clientVotes: Record<string,number> = {}
-    private readonly buffTimerInSeconds = 60
+    private readonly buffTimerInSeconds = 5
 
 
     constructor() {
@@ -26,8 +26,7 @@ export class GameServer {
         this.port = this.detectPort()
         this.server = this.createServer()
         this.ws = this.createWebSocketServer()
-        // setInterval(this.sendVillagerBuff, this.buffTimerInSeconds * 1000);
-
+        setInterval(this.sendVillagerBuff, this.buffTimerInSeconds * 1000);
     }
 
     private handleHostGameEvent(e: GameEvent, ws: WebSocket) {
@@ -195,8 +194,28 @@ export class GameServer {
         return gameEvents
     }
 
-    // private sendVillagerBuff()
-    // {
-    //     this.dis({clientType: "Client", type: 'VoteCount', value: this.clientVotes, subType: 'VoteCount'})
-    // }
+    private sendVillagerBuff = () => {
+        if(Object.keys(this.clientVotes).length === 0){
+            return
+        }
+        const votesInDesc = Object.entries(this.clientVotes).sort((a, b) => b[1] - a[1])
+
+        const [name, votes] = votesInDesc[0]
+        const [type, subType] = name.split('_')
+
+        const event: GameEvent = {
+            clientType: "Server",
+            type,
+            value: votes,
+        }
+
+        if (typeof subType !== 'undefined') {
+            event.subType = subType
+        }
+
+        console.log('Sending buff to host');
+        this.dispatchGameEventsToHost([event])
+        this.dispatchGameEventsToClients([event])
+        this.clientVotes = {}
+    }
 }
