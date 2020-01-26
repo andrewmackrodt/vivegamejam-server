@@ -1,8 +1,9 @@
-import {createServer, Server} from 'http'
-import {Server as WebSocketServer} from 'ws'
+import {GameEvent} from './GameEvent'
+import {Server as HttpServer, createServer} from 'http'
 
 import morgan = require('morgan')
 
+import * as WebSocket from 'ws'
 import * as express from 'express'
 import * as expressWs from 'express-ws'
 
@@ -11,14 +12,49 @@ export class GameServer {
 
     private readonly app: express.Application
     private readonly port: number
-    private readonly server: Server
-    private readonly ws: WebSocketServer
+    private readonly server: HttpServer
+    private readonly ws: WebSocket.Server
+
+    private host: WebSocket | undefined
+    private readonly clients: Set<WebSocket> = new Set<WebSocket>()
 
     constructor() {
         this.app = this.createApp()
         this.port = this.detectPort()
         this.server = this.createServer()
         this.ws = this.createWebSocketServer()
+    }
+
+    private handleHostGameEvent(e: GameEvent, ws: WebSocket) {
+        switch (e.type) {
+            case 'Identify':
+                this.host = ws
+                break
+            case 'MonsterEnergyChange':
+                this.dispatchGameEventsToClients(e)
+                break
+        }
+    }
+
+    private handleClientGameEvent(e: GameEvent, ws: WebSocket) {
+        switch (e.type) {
+            case 'Identify':
+                this.clients.add(ws)
+                break
+        }
+    }
+
+    private dispatchGameEventsToClients(events: GameEvent | GameEvent[], ignoreWs?: WebSocket) {
+        if ( ! Array.isArray(events)) {
+            events = [events]
+        }
+        const serialized = JSON.stringify(events)
+        for (const ws of this.clients.values()) {
+            if (ws === ignoreWs) {
+                continue
+            }
+            ws.send(serialized)
+        }
     }
 
     public start(): void {
@@ -57,40 +93,76 @@ export class GameServer {
         return app
     }
 
-    private createServer(): Server {
+    private createServer(): HttpServer {
         return createServer(this.app)
     }
 
-    private createWebSocketServer(): WebSocketServer {
+    private createWebSocketServer(): WebSocket.Server {
         const instance = expressWs(this.app, this.server)
 
         instance.app.ws('/', (ws, req, next) => {
-            console.log('Connected client on port %s.', this.port)
+            console.log('New connection on port %s.', this.port)
 
-            ws.on('message', (m: any) => {
-                console.log('[server](message): %s', JSON.stringify(m))
+            ws.on('message', (message: any) => {
+                console.debug('message: %s', message)
 
-                this.ws.clients.forEach(function each(client) {
-                    console.log(client.readyState);
-                    console.log("replying message to clients");
-
-                    if (client !== ws && client.readyState === 1) {
-                        client.send(JSON.stringify({
-                            type: 'ApplyBuff',
-                            subType: m.buffType,
-                            value: 1,
-                            clientType: 'Client',
-                        }));
-
+                for (const gameEvent of this.parseMessageGameEvents(message)) {
+                    switch (gameEvent.clientType) {
+                        case 'Server':
+                            this.handleHostGameEvent(gameEvent, ws)
+                            break
+                        case 'Client':
+                            this.handleClientGameEvent(gameEvent, ws)
+                            break
                     }
-                });
+                }
             })
 
             ws.on('close', () => {
-                console.log('Client disconnected')
+                if (this.host === ws) {
+                    console.log('Host has disconnected')
+                    delete this.host
+                    // todo notify clients of server disconnection
+                } else {
+                    console.log('Client has disconnected')
+                    this.clients.delete(ws)
+                }
             })
         })
 
         return instance.getWss()
+    }
+
+    private parseMessageGameEvents(message: string): GameEvent[] {
+        const gameEvents: GameEvent[] = []
+        const json: Partial<GameEvent[]> = JSON.parse(message)
+        
+        if ( ! Array.isArray(json) || json.length === 0) {
+            console.error(`Bad message: not an array or empty`)
+
+            return gameEvents
+        }
+
+        for (const item of json) {
+            if (typeof item !== 'object' || item === null) {
+                console.error(`Bad message: not an object`)
+                continue
+            }
+            if (['Server', 'Client'].indexOf(item.clientType || '') === -1) {
+                console.error(`Bad message: unknown clientType ${item.clientType}`)
+                continue
+            }
+            if (typeof item.type !== 'string' || item.type.length === 0) {
+                console.error(`Bad message: invalid type ${item.type}`)
+                continue
+            }
+            if (typeof item.value === 'undefined' || item.value === null) {
+                console.error(`Bad message: invalid value ${item.value}`)
+                continue
+            }
+            gameEvents.push(item)
+        }
+
+        return gameEvents
     }
 }

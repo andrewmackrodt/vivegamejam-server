@@ -99,6 +99,12 @@
 
     socket.onopen = (e) => {
       console.log('open', e)
+
+      socket.send(JSON.stringify([{
+        clientType: 'Client',
+        type: 'Identify',
+        value: true,
+      }]))
     };
 
     socket.onmessage = (e) => {
